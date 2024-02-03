@@ -1,0 +1,70 @@
+import random
+
+class Hero:
+    def __init__(self, name, max_health, damage, accuracy):
+        self.name = name
+        self.max_health = max_health
+        self.current_health = max_health
+        self.damage = damage
+        self.accuracy = accuracy
+
+    def attack(self, enemy):
+        if random.random() <= self.accuracy:
+            damage_dealt = random.randint(1, self.damage)
+            enemy.take_damage(damage_dealt)
+            print(f"{self.name} нанес {damage_dealt} урона {enemy.name}")
+        else:
+            print(f"{self.name} промахнулся!")
+
+    def take_damage(self, damage):
+        self.current_health -= damage
+        if self.current_health < 0:
+            self.current_health = 0
+
+    def is_alive(self):
+        return self.current_health > 0
+
+
+class Enemy:
+    def __init__(self, name, max_health, damage, accuracy):
+        self.name = name
+        self.max_health = max_health
+        self.current_health = max_health
+        self.damage = damage
+        self.accuracy = accuracy
+
+    def attack(self, hero):
+        if random.random() <= self.accuracy:
+            damage_dealt = random.randint(1, self.damage)
+            hero.take_damage(damage_dealt)
+            print(f"{self.name} нанес {damage_dealt} урона {hero.name}")
+        else:
+            print(f"{self.name} промахнулся!")
+
+    def take_damage(self, damage):
+        self.current_health -= damage
+        if self.current_health < 0:
+            self.current_health = 0
+
+    def is_alive(self):
+        return self.current_health > 0
+
+
+def battle(hero, enemy):
+    print(f"Бой начинается: {hero.name} против {enemy.name}")
+
+    while hero.is_alive() and enemy.is_alive():
+        hero.attack(enemy)
+        if not enemy.is_alive():
+            print(f"{enemy.name} побежден!")
+            break
+
+        enemy.attack(hero)
+        if not hero.is_alive():
+            print(f"{hero.name} побежден!")
+
+# Пример использования
+hero = Hero("Герой", 100, 5, 1.1)
+enemy = Enemy("Враг", 80, 5, 1.1)
+
+battle(hero, enemy)
