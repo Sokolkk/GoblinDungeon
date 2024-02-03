@@ -1,0 +1,41 @@
+import arcade
+
+class Character:
+    def __init__(self, name, health, attack):
+        self.name = name
+        self.health = health
+        self.attack = attack
+
+    def is_alive(self):
+        return self.health > 0
+
+    def take_damage(self, damage):
+        self.health -= damage
+        if self.health < 0:
+            self.health = 0
+
+    def do_attack(self, other):
+        if self.is_alive():
+            other.take_damage(self.attack)
+            print(f"{self.name} атакует {other.name} и наносит {self.attack} урона.")
+            print(f"У {other.name} осталось {other.health} здоровья.\n")
+
+def main():
+    # Создаем персонажей
+    hero = Character("Герой", 100, 20)
+    monster = Character("Монстр", 80, 15)
+
+    # Бой продолжается, пока оба персонажа живы
+    while hero.is_alive() and monster.is_alive():
+        hero.do_attack(monster)
+        if monster.is_alive():
+            monster.do_attack(hero)
+
+    # Выводим результат боя
+    if hero.is_alive():
+        print(f"{hero.name} победил!")
+    else:
+        print(f"{monster.name} победил!")
+
+if __name__ == "__main__":
+    main()
