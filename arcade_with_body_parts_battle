@@ -1,0 +1,153 @@
+import arcade
+import random
+
+class BodyPart:
+    def __init__(self, name, health, is_critical=False):
+        self.name = name
+        self.health = health
+        self.is_critical = is_critical  # Если часть тела критическая, ее потеря означает смерть персонажа
+        self.status = "intact"  # Статусы: intact, damaged, severed
+
+    def receive_damage(self, damage):
+        self.health -= damage
+        if self.health <= 0 and not self.is_critical:
+            self.status = "severed"
+        elif self.health <= 0 and self.is_critical:
+            self.status = "destroyed"
+        else:
+            self.status = "damaged"
+
+    def __str__(self):
+        return f"{self.name}: Health {self.health}, Status {self.status}"
+
+
+class Character:
+    def __init__(self, name, health, attack_power, defense):
+        self.name = name
+        self.health = health
+        self.attack_power = attack_power
+        self.defense = defense
+        # Добавляем части тела
+        self.body_parts = [
+            BodyPart("Head", 30, is_critical=True),
+            BodyPart("Torso", 100, is_critical=True),
+            BodyPart("Left Arm", 40),
+            BodyPart("Right Arm", 40),
+            BodyPart("Left Leg", 50),
+            BodyPart("Right Leg", 50),
+        ]
+
+    def attack(self, target):
+        # Выбираем случайную часть тела для атаки
+        target_part = random.choice(target.body_parts)
+        damage = max(0, self.attack_power - target.defense)
+        target_part.receive_damage(damage)
+        print(
+            f"{self.name} attacks {target.name}'s {target_part.name} for {damage} damage, Status: {target_part.status}")
+        if target_part.status == "destroyed":
+            print(f"{target.name} is critically hit in the {target_part.name} and is defeated.")
+            target.health = 0  # Обновляем здоровье персонажа до 0 при критическом ударе
+
+    def total_health(self):
+        # Обновляем общее здоровье, исходя из состояния частей тела
+        self.health = sum(part.health for part in self.body_parts if part.status != "severed")
+        return self.health
+
+    def is_alive(self):
+        return self.total_health() > 0 and any(
+            part.status != "destroyed" for part in self.body_parts if part.is_critical)
+
+
+class Battle:
+    def __init__(self, participants):
+        self.participants = participants
+        self.turn = 0
+
+    def next_turn(self):
+        attacker = self.participants[self.turn % len(self.participants)]
+        target = self.participants[(self.turn + 1) % len(self.participants)]
+        if not attacker.is_alive() or not target.is_alive():
+            # Удаляем участников, которые уже погибли
+            self.participants = [p for p in self.participants if p.is_alive()]
+            return False  # Прекращаем ход, если кто-то мертв
+
+        attacker.attack(target)
+        target.total_health()  # Обновляем здоровье после атаки
+
+        if not target.is_alive():
+            print(f"{target.name} has been defeated.")
+            self.participants.remove(target)
+
+        self.turn += 1
+
+        if len(self.participants) == 1:
+            print(f"{self.participants[0].name} wins the battle!")
+            return True
+        return False
+
+
+class GameWindow(arcade.Window):
+    def __init__(self, width, height, title):
+        super().__init__(width, height, title)
+        arcade.set_background_color(arcade.color.BLACK)
+        self.hero = Character("Hero", 100, 20, 5)
+        self.monster = Character("Monster", 80, 15, 3)
+        self.battle = Battle([self.hero, self.monster])
+
+    def setup(self):
+        # Инициализация игры, если нужно
+        pass
+
+    def on_draw(self):
+        arcade.start_render()
+        # Здесь код для отрисовки объектов
+        self.draw_characters()
+
+    def on_update(self, delta_time):
+        # Здесь можно добавить логику обновления
+        self.on_draw()
+
+    def draw_characters(self):
+        # Начальные координаты для отображения информации о персонажах
+        x = 100
+        y_hero = 450
+        y_monster = 300
+
+        # Отрисовка информации о герое
+        arcade.draw_text(f"{self.hero.name}: Total Health {self.hero.total_health()}", x, y_hero,
+                         arcade.color.WHITE, 14)
+        for part in self.hero.body_parts:
+            y_hero -= 20
+            arcade.draw_text(f"  {part}", x, y_hero, arcade.color.LIGHT_GRAY, 12)
+
+        # Отрисовка информации о монстре
+        arcade.draw_text(f"{self.monster.name}: Total Health {self.monster.total_health()}", x, y_monster,
+                         arcade.color.WHITE, 14)
+        for part in self.monster.body_parts:
+            y_monster -= 20
+            arcade.draw_text(f"  {part}", x, y_monster, arcade.color.LIGHT_GRAY, 12)
+
+    def on_key_press(self, key, modifiers):
+        # Проверяем, нажата ли клавиша пробела
+        if key == arcade.key.SPACE:
+            battle_finished = self.battle.next_turn()
+            if battle_finished:
+                print("Battle finished!")
+                # Здесь может быть логика для рестарта или завершения игры
+                # Например, можно очистить текущую битву и подготовить новую
+
+
+def main():
+    window = GameWindow(800, 600, "Turn-Based Combat Game")
+    window.setup()
+    arcade.run()
+
+if __name__ == "__main__":
+    main()
+# Создаем персонажей
+hero = Character("Hero", 100, 20, 5)
+monster = Character("Monster", 80, 15, 3)
+
+# Инициализируем и проводим битву
+battle = Battle([hero, monster])
+
