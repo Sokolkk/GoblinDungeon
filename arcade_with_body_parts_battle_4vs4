@@ -20,18 +20,14 @@ class BodyPart:
     def __str__(self):
         return f"{self.name}: Health {self.health}, Status {self.status}"
 
-
 class Character:
     def __init__(self, name, health, attack_power, defense, speed, team):
         self.name = name
         self.health = health
         self.attack_power = attack_power
         self.defense = defense
-        self.speed = speed  # Новый атрибут скорости
-        self.team = team  # Добавляем атрибут команды
-        # Инициализация частей тела остается без изменений
-
-        # Добавляем части тела
+        self.speed = speed
+        self.team = team
         self.body_parts = [
             BodyPart("Head", 30, is_critical=True),
             BodyPart("Torso", 100, is_critical=True),
@@ -42,38 +38,32 @@ class Character:
         ]
 
     def attack(self, target):
-        # Выбираем случайную часть тела для атаки
         target_part = random.choice(target.body_parts)
         damage = max(0, self.attack_power - target.defense)
         target_part.receive_damage(damage)
-        print(
-            f"{self.name} attacks {target.name}'s {target_part.name} for {damage} damage, Status: {target_part.status}")
+        print(f"{self.name} attacks {target.name}'s {target_part.name} for {damage} damage, Status: {target_part.status}")
         if target_part.status == "destroyed":
             print(f"{target.name} is critically hit in the {target_part.name} and is defeated.")
-            target.health = 0  # Обновляем здоровье персонажа до 0 при критическом ударе
+            target.health = 0
 
     def total_health(self):
-        # Обновляем общее здоровье, исходя из состояния частей тела
         self.health = sum(part.health for part in self.body_parts if part.status != "severed")
         return self.health
 
     def is_alive(self):
-        return self.total_health() > 0 and any(
-            part.status != "destroyed" for part in self.body_parts if part.is_critical)
-
+        return self.total_health() > 0 and any(part.status != "destroyed" for part in self.body_parts if part.is_critical)
 
 class Battle:
     def __init__(self, participants):
-        self.participants = participants  # Список всех участников битвы
+        self.participants = participants
 
     def next_turn(self):
-        # Фильтруем живых участников и сортируем их по скорости + случайное число
         alive_participants = [p for p in self.participants if p.is_alive()]
         sorted_participants = sorted(alive_participants, key=lambda x: x.speed + random.random(), reverse=True)
 
         for attacker in sorted_participants:
             target_team = [p for p in alive_participants if p != attacker and p.team != attacker.team]
-            if not target_team:  # Если команда противника побеждена
+            if not target_team:
                 print(f"Team {attacker.team} wins the battle!")
                 return True
 
@@ -82,22 +72,16 @@ class Battle:
             if not target.is_alive():
                 print(f"{target.name} has been defeated.")
 
-        return False  # Продолжаем битву
-
-
+        return False
 
 class GameWindow(arcade.Window):
     def __init__(self, width, height, title):
         super().__init__(width, height, title)
         arcade.set_background_color(arcade.color.BLACK)
-        # Удалите следующие строки, они избыточны и вызывают ошибку
-        # self.hero = Character("Hero", 100, 20, 5)
-        # self.monster = Character("Monster", 80, 15, 3)
-        self.participants = []  # Инициализируем пустым списком, будет заполнен в setup
-        self.battle = None  # Инициализируем в setup
+        self.participants = []
+        self.battle = None
 
     def setup(self):
-        # Создание персонажей для двух команд уже правильно реализовано здесь
         self.participants = [
             Character("Hero 1", 100, 20, 5, 10, "Player"),
             Character("Hero 2", 90, 25, 4, 12, "Player"),
@@ -112,48 +96,34 @@ class GameWindow(arcade.Window):
 
     def on_draw(self):
         arcade.start_render()
-        # Здесь код для отрисовки объектов
         self.draw_characters()
 
     def on_update(self, delta_time):
-        # Здесь можно добавить логику обновления
-        self.on_draw()
+        pass
 
     def draw_characters(self):
-        # Расчет координат для отображения информации о команде игрока
         player_x = 50
         player_y_start = 550
-
-        # Расчет координат для отображения информации о команде противника
         enemy_x = 400
         enemy_y_start = 550
-
-        # Отрисовка информации о команде игрока
         for character in [p for p in self.participants if p.team == "Player"]:
             self.draw_character_info(character, player_x, player_y_start)
-            player_y_start -= 100  # Сдвигаемся вниз для следующего персонажа
-
-        # Отрисовка информации о команде противника
+            player_y_start -= 100
         for character in [p for p in self.participants if p.team == "Enemy"]:
             self.draw_character_info(character, enemy_x, enemy_y_start)
-            enemy_y_start -= 100  # Сдвигаемся вниз для следующего персонажа
+            enemy_y_start -= 100
 
     def draw_character_info(self, character, x, y):
-        # Отрисовка информации о персонаже
         arcade.draw_text(f"{character.name}: Health {character.total_health()}", x, y, arcade.color.WHITE, 14)
         for part in character.body_parts:
             y -= 15
             arcade.draw_text(f"  {part}", x, y, arcade.color.LIGHT_GRAY, 12)
 
     def on_key_press(self, key, modifiers):
-        # Проверяем, нажата ли клавиша пробела
         if key == arcade.key.SPACE:
             battle_finished = self.battle.next_turn()
             if battle_finished:
                 print("Battle finished!")
-                # Здесь может быть логика для рестарта или завершения игры
-                # Например, можно очистить текущую битву и подготовить новую
-
 
 def main():
     window = GameWindow(800, 600, "Turn-Based Combat Game")
@@ -162,10 +132,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-# Создаем персонажей
-hero = Character("Hero", 100, 20, 5)
-monster = Character("Monster", 80, 15, 3)
-
-# Инициализируем и проводим битву
-battle = Battle([hero, monster])
-
