@@ -1,1 +1,138 @@
+import arcade
+import random
+
+class BodyPart:
+    def __init__(self, name, health, is_critical=False):
+        self.name = name
+        self.health = health
+        self.is_critical = is_critical
+        self.status = "intact"
+
+    def receive_damage(self, damage):
+        self.health -= damage
+        if self.health <= 0 and not self.is_critical:
+            self.status = "severed"
+        elif self.health <= 0 and self.is_critical:
+            self.status = "destroyed"
+        else:
+            self.status = "damaged"
+
+    def __str__(self):
+        return f"{self.name}: Health {self.health}, Status {self.status}"
+
+class Character:
+    def __init__(self, name, health, attack_power, defense, speed, team, x, y):
+        self.name = name
+        self.health = health
+        self.attack_power = attack_power
+        self.defense = defense
+        self.speed = speed
+        self.team = team
+        self.x = x
+        self.y = y
+        self.initial_x = x
+        self.initial_y = y
+        self.is_attacking = False
+        self.attack_target = None
+        self.body_parts = [
+            BodyPart("Head", 30, is_critical=True),
+            BodyPart("Torso", 100, is_critical=True),
+            BodyPart("Left Arm", 40),
+            BodyPart("Right Arm", 40),
+            BodyPart("Left Leg", 50),
+            BodyPart("Right Leg", 50),
+        ]
+
+    def attack(self, target):
+        self.is_attacking = True
+        self.attack_target = target
+        # Attack logic simulated here
+        print(f"{self.name} is attacking {target.name}")
+
+    def total_health(self):
+        self.health = sum(part.health for part in self.body_parts if part.status != "severed")
+        return self.health
+
+    def is_alive(self):
+        return self.total_health() > 0 and any(part.status != "destroyed" for part in self.body_parts if part.is_critical)
+
+class Battle:
+    def __init__(self, participants):
+        self.participants = participants
+
+    def next_turn(self):
+        alive_participants = [p for p in self.participants if p.is_alive()]
+        if len(set(p.team for p in alive_participants)) < 2:
+            print("Battle finished!")
+            return True
+        return False
+
+class GameWindow(arcade.Window):
+    def __init__(self, width, height, title):
+        super().__init__(width, height, title)
+        arcade.set_background_color(arcade.color.BLACK)
+        self.participants = []
+        self.battle = None
+        self.current_attacker_index = 0
+        self.is_attack_phase = False
+
+    def setup(self):
+        self.participants = [
+            Character("Hero 1", 100, 20, 5, 10, "Player", 100, 500),
+            Character("Hero 2", 90, 25, 4, 12, "Player", 100, 400),
+            Character("Hero 3", 85, 30, 3, 14, "Player", 100, 300),
+            Character("Hero 4", 95, 18, 6, 11, "Player", 100, 200),
+            Character("Monster 1", 80, 15, 3, 9, "Enemy", 700, 500),
+            Character("Monster 2", 70, 20, 2, 8, "Enemy", 700, 400),
+            Character("Monster 3", 60, 25, 1, 7, "Enemy", 700, 300),
+            Character("Monster 4", 75, 18, 4, 10, "Enemy", 700, 200),
+        ]
+        self.battle = Battle(self.participants)
+
+    def on_draw(self):
+        arcade.start_render()
+        for character in self.participants:
+            color = arcade.color.BLUE if character.team == "Player" else arcade.color.RED
+            arcade.draw_rectangle_filled(character.x, character.y, 30, 30, color)
+
+    def on_update(self, delta_time):
+        if self.is_attack_phase:
+            attacker = self.participants[self.current_attacker_index]
+            self.animate_attack(attacker)
+        else:
+            self.initiate_attack()
+
+    def initiate_attack(self):
+        attacker = self.participants[self.current_attacker_index]
+        if attacker.is_alive():
+            enemy_team = [p for p in self.participants if p.team != attacker.team and p.is_alive()]
+            if enemy_team:
+                target = random.choice(enemy_team)
+                attacker.attack(target)
+                self.is_attack_phase = True
+
+    def animate_attack(self, attacker):
+        target = attacker.attack_target
+        if target and attacker.is_attacking:
+            attacker.x += (target.x - attacker.x) * 0.1
+            attacker.y += (target.y - attacker.y) * 0.1
+            if abs(attacker.x - target.x) < 5 and abs(attacker.y - target.y) < 5:
+                attacker.is_attacking = False
+                attacker.x, attacker.y = attacker.initial_x, attacker.initial_y
+                self.current_attacker_index = (self.current_attacker_index + 1) % len(self.participants)
+                self.is_attack_phase = False
+                if self.battle.next_turn():
+                    self.current_attacker_index = 0  # Reset for a new round or end game
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.SPACE:
+            self.is_attack_phase = not self.is_attack_phase
+
+def main():
+    window = GameWindow(800, 600, "Turn-Based Combat Game")
+    window.setup()
+    arcade.run()
+
+if __name__ == "__main__":
+    main()
 
