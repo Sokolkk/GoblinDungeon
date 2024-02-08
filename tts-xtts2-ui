@@ -1,0 +1,100 @@
+import torch
+import platform
+import json
+from pathlib import Path
+import uuid
+import html
+from TTS.api import TTS
+from moviepy.editor import VideoFileClip, AudioFileClip, CompositeAudioClip, ImageClip, concatenate_videoclips
+import random
+import os
+
+
+def add_background_music(video_path, voice_audio_path, music_folder, output_video_path, music_volume=0.12):
+    video_clip = VideoFileClip(str(video_path))
+    voice_clip = AudioFileClip(str(voice_audio_path))
+    music_files = [os.path.join(music_folder, f) for f in os.listdir(music_folder) if f.endswith(('.mp3', '.wav'))]
+    music_path = random.choice(music_files)
+    music_clip = AudioFileClip(str(music_path)) # Преобразование Path в строку
+    music_clip = music_clip.volumex(music_volume)
+    music_clip = music_clip.set_duration(voice_clip.duration)
+    final_audio = CompositeAudioClip([voice_clip, music_clip])
+    final_clip = video_clip.set_audio(final_audio)
+    final_clip.write_videofile(str(output_video_path), codec="libx264", audio_codec='aac') # Преобразование Path в строку
+
+def create_video(images_folder, audio_file_path, output_video_path, fps=24):
+    audio_clip = AudioFileClip(str(audio_file_path)) # Преобразование Path в строку
+    audio_duration = audio_clip.duration
+    images = sorted([os.path.join(images_folder, img) for img in os.listdir(images_folder) if img.endswith((".png", ".jpg", ".jpeg"))])
+    duration_per_image = audio_duration / len(images)
+    clips = [ImageClip(img).set_duration(duration_per_image).set_fps(fps) for img in images]
+    video_clip = concatenate_videoclips(clips, method="compose")
+    video_clip = video_clip.set_audio(audio_clip)
+    video_clip.write_videofile(str(output_video_path), codec="libx264", audio_codec='aac') # Преобразование Path в строку
+
+def is_mac_os():
+    return platform.system() == 'Darwin'
+
+def gen_voice(text, speaker, speed, language, output_dir, languages):
+    text = html.unescape(text)
+    short_uuid = str(uuid.uuid4())[:8]
+    output_file = Path(output_dir) / f"{speaker}-{short_uuid}.wav"
+    tts.tts_to_file(
+        text=text,
+        speed=speed,
+        file_path=output_file,
+        speaker_wav=[f"targets/{speaker}.wav"],
+        language=languages[language]
+    )
+    print(f"Generated audio file: {output_file}")
+    return output_file
+
+
+if __name__ == "__main__":
+    # Load text from file
+    text_file_path = Path(__file__).parent / "text.txt"
+    with open(text_file_path, 'r', encoding='utf-8') as file:
+        text_from_file = file.read()
+
+    # Hardcoded parameters
+    params = {
+        "text": text_from_file,
+        "speaker": "Гура",
+        "speed": 0.8,
+        "language": "Russian",
+        "model_name": "tts_models/multilingual/multi-dataset/xtts_v2",
+        "output_dir": "./outputs"
+    }
+
+    # Initialize device
+    device = torch.device('cpu' if is_mac_os() else 'cuda:0')
+
+    # Load model and language data
+    tts = TTS(model_name=params["model_name"]).to(device)
+    with open(Path('languages.json'), encoding='utf8') as f:
+        languages = json.load(f)
+
+    # Generate voice from text
+    audio_file_path = gen_voice(
+        params["text"],
+        params["speaker"],
+        params["speed"],
+        params["language"],
+        params["output_dir"],
+        languages
+    )
+
+    # Specify the folder containing images and the output video path
+    images_folder = './images'
+    output_video_path = './output_video.mp4'
+    # Генерация видео из картинок и аудио
+    create_video(images_folder, audio_file_path, output_video_path)
+
+    # Добавление фоновой музыки к видео
+    music_folder = './music'  # Убедитесь, что папка с музыкой существует и содержит музыкальные файлы
+
+    # Теперь вызываем add_background_music с корректными аргументами
+    add_background_music(output_video_path, audio_file_path, music_folder, output_video_path + "_with_music.mp4")
+
+    # Create video from images with the generated audio
+    #create_video(images_folder, audio_file_path, output_video_path)
